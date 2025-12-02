@@ -17,19 +17,37 @@
    /** Returns API base from env or default without referencing global process at runtime. */
    // 1) Prefer window.__REACT_APP__.API_BASE if the host page injected one
    if (typeof window !== 'undefined' && window.__REACT_APP__ && window.__REACT_APP__.API_BASE) {
-     return String(window.__REACT_APP__.API_BASE);
+     const injected = String(window.__REACT_APP__.API_BASE);
+     if (injected) return injected;
    }
    // 2) CRA-style compile-time replacement: process.env.REACT_APP_API_BASE
    // Accessing process.env here is transformed at build time by CRA.
    try {
      if (typeof process !== 'undefined' && process && process.env && process.env.REACT_APP_API_BASE) {
-       return String(process.env.REACT_APP_API_BASE);
+       const envBase = String(process.env.REACT_APP_API_BASE);
+       if (envBase) return envBase;
      }
    } catch {
      // ignore any runtime issues
    }
    // 3) Fallback to DEFAULT_BASE
    return DEFAULT_BASE;
+ }
+ 
+ function normalizeBaseUrl(base) {
+   // Ensure no trailing slash
+   return String(base || '').replace(/\/+$/, '');
+ }
+ 
+ function classifyNetworkError(errMessage) {
+   const msg = (errMessage || '').toLowerCase();
+   if (msg.includes('failed to fetch') || msg.includes('networkerror')) {
+     return 'network';
+   }
+   if (msg.includes('cors') || msg.includes('blocked by')) {
+     return 'cors';
+   }
+   return 'unknown';
  }
  
  // INTERNAL token accessor set by AuthContext
@@ -42,11 +60,38 @@
  }
  
  /**
+  * Health check helper to quickly verify connectivity and CORS to backend.
+  * Attempts GET /health and falls back to GET /.
+  */
+ // PUBLIC_INTERFACE
+ export async function healthCheck() {
+   const base = normalizeBaseUrl(getApiBase());
+   const urlsToTry = [`${base}/health`, `${base}/`];
+   for (const url of urlsToTry) {
+     try {
+       const res = await fetch(url, { method: 'GET', credentials: 'omit' });
+       const ct = res.headers.get('content-type') || '';
+       let body = null;
+       try {
+         body = ct.includes('application/json') ? await res.json() : await res.text();
+       } catch {
+         body = null;
+       }
+       return { ok: res.ok, status: res.status, url, body };
+     } catch (e) {
+       // continue trying next URL
+     }
+   }
+   return { ok: false, status: 0, url: urlsToTry[0], body: null };
+ }
+ 
+ /**
   * Internal request helper for JSON APIs.
   * Adds Authorization only for non-public endpoints to avoid accidental 401 on public search.
   */
  async function request(path, { method = 'GET', body, headers } = {}) {
-   const base = getApiBase().replace(/\/+$/, '');
+   const baseRaw = getApiBase();
+   const base = normalizeBaseUrl(baseRaw);
    const urlPath = path.startsWith('/') ? path : `/${path}`;
    const url = `${base}${urlPath}`;
  
@@ -71,16 +116,20 @@
        headers: reqHeaders,
        body: body ? JSON.stringify(body) : undefined,
        credentials: 'omit',
-       // mode left default so same-origin policy works in dev; if backend is on different origin,
-       // CORS must allow http://localhost:3000 in backend config.
      });
    } catch (networkErr) {
-     // Surface more actionable network/CORS error info
-     const hint =
-       'Network error. Possible causes: backend not running at ' +
-       `${base}, wrong REACT_APP_API_BASE, or CORS blocked (allow http://localhost:3000).`;
-     const msg =
-       (networkErr && networkErr.message) ? `${networkErr.message} — ${hint}` : hint;
+     const classification = classifyNetworkError(networkErr?.message || '');
+     const baseHint = `Backend base resolved to ${base}.`;
+     let hint =
+       `${baseHint} Ensure backend is listening on 0.0.0.0:3001 and CORS allows http://localhost:3000.`;
+     if (classification === 'network') {
+       hint = `${baseHint} Network error. Backend may be down or URL is wrong (REACT_APP_API_BASE).`;
+     } else if (classification === 'cors') {
+       hint = `${baseHint} CORS blocked. Configure server CORS to allow http://localhost:3000.`;
+     }
+     const msg = networkErr?.message ? `${networkErr.message} — ${hint}` : hint;
+     // eslint-disable-next-line no-console
+     console.warn('[api] fetch failed', { url, message: networkErr?.message, base });
      throw new Error(msg);
    }
  
@@ -109,16 +158,18 @@
  
  // PUBLIC_INTERFACE
  export const api = {
-   /** Search recipes by query string. Public endpoint, no auth required. */
+   /** This is a public function. Search recipes by query string. Public endpoint, no auth required. */
    search: (q) => request(`/recipes/search?q=${encodeURIComponent(q || '')}`),
-   /** Get recipe by ID. Public endpoint, no auth required. */
+   /** This is a public function. Get recipe by ID. Public endpoint, no auth required. */
    getRecipe: (id) => request(`/recipes/${id}`),
-   /** Get saved recipes for current user (requires auth). */
+   /** This is a public function. Get saved recipes for current user (requires auth). */
    getSaved: () => request(`/users/me/saved`),
-   /** Save/unsave a recipe (requires auth). */
+   /** This is a public function. Save a recipe (requires auth). */
    saveRecipe: (recipeId) => request(`/users/me/saved`, { method: 'POST', body: { recipe_id: recipeId } }),
+   /** This is a public function. Unsave a recipe (requires auth). */
    unsaveRecipe: (recipeId) => request(`/users/me/saved/${encodeURIComponent(recipeId)}`, { method: 'DELETE' }),
-   /** Auth endpoints */
+   /** This is a public function. Auth endpoints */
    login: (email, password) => request(`/auth/login`, { method: 'POST', body: { email, password } }),
+   /** This is a public function. Sign up endpoint */
    signup: (email, password) => request(`/auth/signup`, { method: 'POST', body: { email, password } }),
  };
