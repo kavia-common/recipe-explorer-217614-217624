@@ -10,7 +10,9 @@ export default function SearchPage() {
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
 
+  // PUBLIC_INTERFACE
   const doSearch = async () => {
+    /** Triggers search against backend and updates results state. */
     setLoading(true);
     setError('');
     try {

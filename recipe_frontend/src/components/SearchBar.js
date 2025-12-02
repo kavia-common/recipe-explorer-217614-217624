@@ -16,7 +16,7 @@ export default function SearchBar({ value, onChange, onSubmit, placeholder = "Se
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
       />
-      <button className="btn primary" type="submit">Search</button>
+      <button className="btn primary" type="submit" onClick={onSubmit}>Search</button>
     </form>
   );
 }
