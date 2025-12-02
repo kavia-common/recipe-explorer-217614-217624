@@ -1,47 +1,42 @@
-import React, { useState, useEffect } from 'react';
-import logo from './logo.svg';
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import './App.css';
+import { Header } from './components/Header';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
+import SearchPage from './pages/SearchPage';
+import RecipeDetailPage from './pages/RecipeDetailPage';
+import SavedPage from './pages/SavedPage';
+import LoginPage from './pages/LoginPage';
+import SignupPage from './pages/SignupPage';
 
 // PUBLIC_INTERFACE
 function App() {
-  const [theme, setTheme] = useState('light');
-
-  // Effect to apply theme to document element
-  useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme);
-  }, [theme]);
-
-  // PUBLIC_INTERFACE
-  const toggleTheme = () => {
-    setTheme(prevTheme => prevTheme === 'light' ? 'dark' : 'light');
-  };
-
+  /** Root app: provides routing and global auth context */
   return (
-    <div className="App">
-      <header className="App-header">
-        <button 
-          className="theme-toggle" 
-          onClick={toggleTheme}
-          aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-        </button>
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <p>
-          Current theme: <strong>{theme}</strong>
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
+    <div className="app-shell">
+      <BrowserRouter>
+        <AuthProvider>
+          <Header />
+          <main className="container">
+            <Routes>
+              <Route index element={<SearchPage />} />
+              <Route path="/recipe/:id" element={<RecipeDetailPage />} />
+              <Route
+                path="/saved"
+                element={
+                  <ProtectedRoute>
+                    <SavedPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="*" element={<SearchPage />} />
+            </Routes>
+          </main>
+        </AuthProvider>
+      </BrowserRouter>
     </div>
   );
 }
