@@ -28,11 +28,23 @@ export default function SavedPage() {
   if (loading) return <p>Loading...</p>;
   if (err) return <p className="muted">{err}</p>;
 
+  const hasItems = Array.isArray(items) && items.length > 0;
+
   return (
     <div>
       <h1 className="h1">Saved recipes</h1>
       <div className="spacer"></div>
-      <RecipeGrid items={items} />
+      {hasItems ? (
+        <RecipeGrid items={items} />
+      ) : (
+        <div className="card" style={{ padding: 16 }}>
+          <p className="muted">You have no saved recipes yet.</p>
+          <div className="spacer"></div>
+          <a className="btn primary" href="/">
+            Find recipes to save
+          </a>
+        </div>
+      )}
     </div>
   );
 }

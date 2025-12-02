@@ -11,6 +11,9 @@ This project provides a minimal React template with a clean, modern UI and minim
 
 ## Getting Started
 
+Create a .env file in this folder (see .env.example) and set:
+- REACT_APP_API_BASE=http://localhost:3001
+
 In the project directory, you can run:
 
 ### `npm start`

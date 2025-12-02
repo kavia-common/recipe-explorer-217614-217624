@@ -46,7 +46,10 @@ export default function RecipeDetailPage() {
   if (!recipe) return <p>Loading...</p>;
 
   const title = recipe.title || 'Recipe';
-  const image = recipe.image || recipe.image_url;
+  const image =
+    recipe.image ||
+    recipe.image_url ||
+    'https://images.unsplash.com/photo-1512058564366-18510be2db19?q=80&w=1200&auto=format&fit=crop';
   const summary = recipe.summary || recipe.description;
 
   return (
