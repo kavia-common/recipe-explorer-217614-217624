@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { SearchBar, RecipeGrid } from '../components';
-import { api } from '../api/client';
+import { api, getApiBase } from '../api/client';
 
 // PUBLIC_INTERFACE
 export default function SearchPage() {
@@ -9,6 +9,7 @@ export default function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState([]);
   const [error, setError] = useState('');
+  const apiBase = useMemo(() => getApiBase(), []);
 
   // PUBLIC_INTERFACE
   const doSearch = async () => {
@@ -19,7 +20,11 @@ export default function SearchPage() {
       const data = await api.search(q);
       setItems(Array.isArray(data?.results) ? data.results : (Array.isArray(data) ? data : []));
     } catch (e) {
-      setError(e.message || 'Search failed');
+      const msg = e?.message || 'Search failed';
+      const hint = msg.toLowerCase().includes('network')
+        ? ` — Check backend at ${apiBase} and CORS allow http://localhost:3000`
+        : '';
+      setError(`${msg}${hint}`);
     } finally {
       setLoading(false);
     }
@@ -39,6 +44,8 @@ export default function SearchPage() {
       <SearchBar value={q} onChange={setQ} onSubmit={doSearch} />
       <div className="spacer"></div>
       {loading ? <p>Loading...</p> : error ? <p className="muted">{error}</p> : <RecipeGrid items={items} />}
+      <div className="spacer"></div>
+      <p className="muted" style={{ fontSize: 12 }}>API: {apiBase}</p>
     </div>
   );
 }
